@@ -1,0 +1,56 @@
+DevSecOps Pipeline Design
+
+Stage 1: Code Changes & Initial Security
+┌─────────────────────┐     ┌───────────────────┐
+│ Application Code or │     │ Infrastructure    │
+│    OS Change       │     │  Code Change      │
+└────────┬────────────     └────────┬──────────┘
+         │                          │
+         ▼                          │
+┌─────────────────────┐            │
+│  Security Scanning  │            │
+│ - SAST              │            │
+│ - Dependency Check  │            │
+│ - Secrets Scanning  │            │
+└────────┬────────────┘            │
+         │                         │
+         ▼                         │
+┌─────────────────────┐           │
+│  Build Container/   │           │
+│    AMI Image       │           │
+└────────┬────────────┘           │
+         │                        │
+         ▼                        │
+┌─────────────────────┐          │
+│ Container/AMI Scan  │          │
+│ - Amazon Inspector  │          │
+│ - Vuln Scanning    │          │
+│ - Image Signing    │          │
+└────────┬────────────┘          │
+         │                       ▼
+         │             ┌─────────────────────┐
+         │             │   IaC Scanning      │
+         │             │ - Checkov           │
+         │             │ - Policy Compliance │
+         │             │ - SG Validation     │
+         │             └──────────┬──────────┘
+         │                        │
+         └────────────┐          │
+                     ▼          ▼
+            ┌─────────────────────────┐
+            │  Update Configuration   │
+            │   and Infrastructure    │
+            └────────────┬────────────┘
+                        │
+                        ▼
+            ┌─────────────────────────┐
+            │    Deploy to Env        │
+            └────────────┬────────────┘
+                        │
+                        ▼
+            ┌─────────────────────────┐
+            │ Post-Deploy Security    │
+            │ - AWS Config           │
+            │ - Compliance Scan      │
+            │ - Security Monitoring  │
+            └─────────────────────────┘ 

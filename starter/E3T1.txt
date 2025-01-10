@@ -1,3 +1,31 @@
 # Describe GuardDuty findings that were detected related to the brute force attack
 
+1. UnauthorizedAccess:EC2/SSHBruteForce - This finding indicates that an EC2 instance was targeted by SSH brute force attack
+   - The attack originated from our Attack Instance (107.20.31.213)
+   - The target was our Application Server (54.174.27.56)
+   - Multiple failed SSH login attempts were detected in a short time period
+
+2. The attack was classified as a High severity threat due to:
+   - The high volume of login attempts
+   - The systematic nature of the attempts
+   - The potential for unauthorized access to the EC2 instance
+
 # Research the AWS Guard Duty documentation page and explain how GuardDuty may have detected this attack - i.e. what was its source of information.
+
+GuardDuty detected this attack through multiple sources:
+
+1. VPC Flow Logs:
+   - GuardDuty analyzes VPC Flow Logs to monitor network traffic
+   - It detected multiple SSH connection attempts (port 22) from a single source IP
+   - The high frequency of connection attempts is a signature of brute force attacks
+
+2. CloudTrail Events:
+   - GuardDuty monitors CloudTrail management events
+   - It can detect unusual patterns of failed authentication attempts
+   - The service correlates these events with known attack patterns
+
+3. DNS Logs:
+   - GuardDuty monitors DNS queries made by EC2 instances
+   - This helps identify if compromised instances are attempting to communicate with malicious domains
+
+The detection was possible because GuardDuty uses machine learning to establish baseline behavior and identify anomalies in these data sources, particularly the unusual pattern of repeated SSH connection attempts characteristic of brute force attacks.

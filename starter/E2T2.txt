@@ -1,3 +1,116 @@
 Research and analyze which of the vulnerabilities appear to be related to the code that was deployed for the environment in this project.
 
-Bonus - provide recommendations on how to remediate the vulnerabilities.
+# Identified Vulnerabilities
+
+1. Insecure HTTP Communication
+   - Vulnerability: The web application is using HTTP (port 80) instead of HTTPS
+   - Related to Project: Yes - the load balancer is configured to listen on port 80
+   - Impact: Potential interception of sensitive data in transit
+   Remediation:
+   - Configure HTTPS on the load balancer using an SSL/TLS certificate
+   - Redirect all HTTP traffic to HTTPS
+   - Update application code to use HTTPS endpoints
+
+2. Public EC2 Instance Exposure
+   - Vulnerability: Web application instance has direct public IP access
+   - Related to Project: Yes - current architecture exposes the EC2 instance
+   - Impact: Increased attack surface for direct exploitation attempts
+   Remediation:
+   - Move the EC2 instance to a private subnet
+   - Route all traffic through the load balancer
+   - Use Security Groups to restrict access to only the load balancer
+
+3. IAM Security Configuration
+   - Vulnerability: Potential excessive permissions in IAM roles
+   - Related to Project: Yes - involves S3 bucket access permissions
+   - Impact: Risk of unauthorized access to sensitive data
+   Remediation:
+   - Implement least privilege access for IAM roles
+   - Regularly audit and review IAM permissions
+   - Use specific bucket policies for S3 access
+
+4. Network Security Groups
+   - Vulnerability: Overly permissive security group rules
+   - Related to Project: Yes - affects application access control
+   - Impact: Unauthorized access to resources
+   Remediation:
+   - Restrict security group rules to necessary ports only
+   - Implement proper network segmentation
+   - Regular audit of security group configurations
+
+5. Logging and Monitoring
+   - Vulnerability: Insufficient logging and monitoring
+   - Related to Project: Yes - affects security visibility
+   - Impact: Delayed detection of security incidents
+   Remediation:
+   - Enable CloudTrail logging for all regions
+   - Configure CloudWatch alerts for suspicious activities
+   - Implement centralized logging solution
+
+Bonus Recommendations:
+
+1. Infrastructure Security
+   - Implement WAF (Web Application Firewall) on the load balancer
+   - Use AWS Shield for DDoS protection
+   - Regular security patching and updates
+
+2. Data Security
+   - Encrypt data at rest using AWS KMS
+   - Implement bucket versioning for S3
+   - Regular backup and recovery testing
+
+3. Compliance and Governance
+   - Regular security assessments
+   - Implement automated compliance checking
+   - Document and maintain security procedures
+
+4. Application Security
+   - Implement input validation
+   - Use secure coding practices
+   - Regular security testing and code reviews
+
+# Identified Vulnerabilities from AWS Config Findings
+
+1. Subnet Auto-Assignment Issue (securityhub-subnet-auto-assign...)
+   - Vulnerability: 6 Non-compliant resources detected
+   - Related to Project: Yes - affects VPC/network configuration
+   - Impact: Potential network accessibility issues
+   Remediation:
+   - Review and configure subnet auto-assignment settings
+   - Ensure proper network segmentation
+   - Implement proper public/private subnet configuration
+
+2. Root Account Management (securityhub-root-account-mf...)
+   - Vulnerability: 1 Non-compliant resource
+   - Related to Project: Yes - affects account security
+   - Impact: Potential unauthorized root account access
+   Remediation:
+   - Implement MFA for root account
+   - Follow AWS root account security best practices
+   - Regularly audit root account usage
+
+3. Lambda Function Configuration (securityhub-inspector-lambd...)
+   - Vulnerability: Multiple non-compliant resources
+   - Related to Project: Yes - affects serverless components
+   - Impact: Potential security gaps in Lambda functions
+   Remediation:
+   - Review Lambda function permissions
+   - Implement proper function role configurations
+   - Enable Lambda function monitoring
+
+4. VPC Endpoint Configuration (securityhub-vpc-endpoint-en...)
+   - Vulnerability: 1 Non-compliant resource
+   - Related to Project: Yes - affects network security
+   - Impact: Potential exposure of VPC resources
+   Remediation:
+   - Configure VPC endpoints properly
+   - Implement endpoint policies
+   - Review and restrict endpoint access
+
+Summary of Findings:
+- Total Non-compliant rules: 33
+- Compliant rules: 12
+- Non-compliant resources: 10
+- Compliant resources: 1
+
+These findings indicate several security configuration issues that need to be addressed to improve the overall security posture of the deployment.

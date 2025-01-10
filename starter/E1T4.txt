@@ -1,5 +1,11 @@
 Based on the architecture diagram, and the steps you have taken so far to upload data and access the application web service, identify at least 2 obvious poor practices as it relates to security.  Include justification.
 
 # Poor practice 1
+Using HTTP (port 80) instead of HTTPS (port 443) for the load balancer
+Justification: HTTP traffic is unencrypted, which means all data transmitted between clients and the web service is sent in plaintext. This makes it vulnerable to man-in-the-middle attacks, packet sniffing, and data interception. Sensitive information like user credentials or recipe data could be exposed. HTTPS should be used to encrypt all traffic between clients and the server.
 
 # Poor practice 2
+Web application running with a public IP address
+Justification: Having the web application instance directly accessible via a public IP address increases the attack surface unnecessarily. This makes the instance vulnerable to direct attacks like brute force attempts, DDoS attacks, and exploitation of potential vulnerabilities. Instead, the web application should only be accessible through the load balancer, and should be placed in a private subnet with no direct internet access. The load balancer can be the only component with a public IP address, acting as a security barrier.
+
+=> These security issues represent fundamental flaws in the architecture that could lead to serious security breaches. The first issue compromises data confidentiality in transit, while the second unnecessarily exposes infrastructure to potential attacks.

@@ -1,0 +1,211 @@
+Description: This template deploys ec2 instances with enhanced security measures
+
+Parameters:
+  AmiIdRecipeWebServiceInstance:
+    Type: String
+    Default: "ami-0964e67a489e13cdb"
+  AmiIdAttackInstance:
+    Type: String
+    Default: "ami-01fcf79ce78f46764"
+  KeyPair:
+    Type: String
+    Description: "Name of an existing KeyPair you will use to access the EC2 instances in this exercise. Be sure you have access to the private key file corresponding to this keypair."
+
+Resources:
+  # Enhanced IAM Role with least privilege
+  InstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: WebAppS3ReadOnlyAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                Resource:
+                  - !Sub "arn:aws:s3:::${FreeRecipesBucketName}/*"
+                  - !Sub "arn:aws:s3:::${FreeRecipesBucketName}"
+
+  InstanceProfileRole:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref InstanceRole
+
+  # Enhanced Security Group for Web App
+  WebAppSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: WebAppSG
+      GroupDescription: "Security group for this application server with restricted access"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          SourceSecurityGroupId: !Ref AppLoadBalancerSG
+      VpcId: !ImportValue VpcId
+
+  # Web Service Instance in Private Subnet
+  RecipeWebServiceInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiIdRecipeWebServiceInstance
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+        - !GetAtt WebAppSG.GroupId
+      SubnetId: !ImportValue PrivateSubnet
+      IamInstanceProfile: !Ref InstanceProfileRole
+      Tags:
+        - Key: "Name"
+          Value: "Web Service Instance - C3"
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              echo "Environment=S3_FREE_RECIPES="${S3FreeRecipies} | sudo tee -a /lib/systemd/system/flask.service
+              systemctl daemon-reload
+              sleep 30
+              service flask restart
+            - S3FreeRecipies: !ImportValue BucketNameRecipesFree
+
+  # Enhanced ALB Security Group
+  AppLoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: AppLoadBalancerSG
+      GroupDescription: "Security group for the application load balancer"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId: !ImportValue VpcId
+
+  # Application Load Balancer with HTTPS
+  AppLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: c1-web-service-alb
+      SecurityGroups:
+        - !GetAtt AppLoadBalancerSG.GroupId
+      Subnets:
+        - !ImportValue PublicSubnetTrusted
+        - !ImportValue PublicSubnetUnTrusted
+
+  # HTTPS Listener
+  AppLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AppTargetGroup
+      LoadBalancerArn: !Ref AppLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificate
+
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /health
+      Name: AppTargetGroup
+      Port: 5000
+      VpcId: !ImportValue VpcId
+      Protocol: HTTP
+      Targets:
+        - Id: !Ref RecipeWebServiceInstance
+
+  # WAF Web ACL
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: WebAppFirewall
+      Description: WAF for web application protection
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      Rules:
+        - Name: BlockSQLInjection
+          Priority: 1
+          Statement:
+            SqliMatchStatement:
+              FieldToMatch:
+                AllQueryArguments: {}
+              TextTransformations:
+                - Priority: 1
+                  Type: URL_DECODE
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: BlockSQLInjection
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: WebACLMetrics
+
+  # WAF Web ACL Association
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref AppLoadBalancer
+      WebACLArn: !GetAtt WebACL.Arn
+
+  # VPC Endpoint for S3
+  S3VPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub "arn:aws:s3:::${FreeRecipesBucketName}/*"
+              - !Sub "arn:aws:s3:::${FreeRecipesBucketName}"
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcId: !ImportValue VpcId
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !ImportValue PrivateRouteTable
+
+Outputs:
+  ApplicationURL:
+    Value: !GetAtt AppLoadBalancer.DNSName
+  WebACLArn:
+    Value: !GetAtt WebACL.Arn
+  S3VPCEndpointId:
+    Value: !Ref S3VPCEndpoint

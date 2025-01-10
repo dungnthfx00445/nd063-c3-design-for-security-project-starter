@@ -1,8 +1,54 @@
-
 # What additional architectural change can be made to reduce the internet facing attack surface of the web application instance.
+
+1. Implement a bastion host architecture:
+   - Place the web application in a private subnet
+   - Use an Application Load Balancer in the public subnet
+   - Remove public IP from the web application instance
+   - Use AWS Systems Manager Session Manager for instance management instead of SSH
+
+2. Enhance network security:
+   - Implement WAF (Web Application Firewall) in front of the ALB
+   - Use AWS Shield for DDoS protection
+   - Configure more restrictive NACL rules
+   - Enable VPC Flow Logs for network monitoring
+
+3. Additional security layers:
+   - Enable AWS GuardDuty for threat detection
+   - Implement AWS Security Hub for security posture management
+   - Use AWS Systems Manager for patch management
+   - Enable AWS Config for configuration monitoring
 
 # Assuming the IAM permissions for the S3 bucket are still insecure, would creating VPC private endpoints for S3 prevent the unauthorized access to the secrets bucket.
 
+No, VPC private endpoints for S3 alone would not prevent unauthorized access to the secrets bucket. Here's why:
+1. VPC endpoints only provide a private route to S3, bypassing the internet gateway
+2. IAM permissions still control the actual access to S3 resources
+3. If IAM permissions are insecure, an attacker could still access the bucket through:
+   - AWS API calls using the instance's IAM role
+   - AWS CLI commands from within the instance
+   - Application code running on the instance
+
+The proper security approach requires both:
+1. Properly configured IAM permissions (least privilege)
+2. VPC endpoints for network-level security
+
 # Will applying default encryption setting to the s3 buckets encrypt the data that already exists?
 
+No, enabling default encryption on S3 buckets will not automatically encrypt existing objects. The setting only affects:
+1. New objects uploaded after enabling the setting
+2. Existing objects must be manually encrypted or re-uploaded
+3. Consider using S3 Batch Operations to encrypt existing objects
+
 # What would happen if the original cloud formation templates are applied to this environment.
+
+If the original CloudFormation templates are applied:
+1. Security improvements would be reverted:
+   - IAM roles would revert to their original, less secure configurations
+   - Security group changes would be overwritten
+   - Any manual security enhancements would be lost
+
+2. Best practices for handling this:
+   - Update the CloudFormation templates to include security improvements
+   - Use AWS CloudFormation drift detection to track manual changes
+   - Implement Infrastructure as Code (IaC) for all security configurations
+   - Document and version control all template modifications

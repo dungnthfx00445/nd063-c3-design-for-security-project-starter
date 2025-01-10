@@ -1,5 +1,31 @@
-
-
 # Identify 2-3 changes that can be made to our environment to prevent an ssh brute force attack from the internet.
 
-# Neither instance should have had access to the secret recipes bucket, in the even that instance API credentials were compromised how could we have prevented access to sensitive data.
+1. Implement Security Groups restrictions:
+   - Modify the security group to only allow SSH access (port 22) from specific trusted IP addresses or VPN
+   - Remove the 0.0.0.0/0 (allow all) rule for SSH access
+
+2. Use AWS Systems Manager Session Manager:
+   - Instead of using SSH, implement AWS Systems Manager Session Manager for instance access
+   - This eliminates the need for open inbound SSH ports and provides secure, auditable instance access through AWS console
+
+3. Implement Network ACLs:
+   - Add Network ACLs as an additional layer of security
+   - Configure rules to limit SSH attempts by implementing connection rate limiting
+   - Block known malicious IP ranges
+
+# Neither instance should have had access to the secret recipes bucket, in the event that instance API credentials were compromised how could we have prevented access to sensitive data.
+
+1. Implement strict IAM policies:
+   - Use the principle of least privilege
+   - Create specific IAM roles for each instance with minimal required permissions
+   - Remove any S3 bucket access from the instance roles entirely if not required
+
+2. Implement S3 bucket policies:
+   - Configure explicit deny policies for the instances' IAM roles
+   - Use AWS Organizations SCPs (Service Control Policies) to enforce bucket access restrictions
+   - Enable S3 bucket versioning to protect against unauthorized modifications
+
+3. Use AWS KMS (Key Management Service):
+   - Encrypt sensitive data in the S3 bucket using KMS
+   - Maintain separate encryption keys with strict access controls
+   - Even if bucket access is compromised, data remains encrypted without proper KMS permissions
